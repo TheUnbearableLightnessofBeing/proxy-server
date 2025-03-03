@@ -1,1 +1,81 @@
+#include "./include/proxy.h"
 
+const char * get_work_mode() 
+{
+
+    if(strlen(remote_host) == 0) 
+    {
+        if(io_flag == FLG_NONE) 
+        {
+            return "start as normal http proxy";
+        } else if(io_flag == R_C_DEC)
+        {
+           return "start as remote forward proxy and do decode data when recevie data" ;
+        }
+        
+    } else 
+    {
+        if(io_flag == FLG_NONE) 
+        {
+            return "start as remote forward proxy";
+        } else if(io_flag == W_S_ENC) 
+        {
+            return "start as forward proxy and do encode data when send data";
+        }
+    }
+
+    return "unknow";
+
+}
+
+/* 获取运行的基本信息输出到指定的缓冲区 */
+void get_info(char * output)
+{
+    int pos = 0;
+    char line_buffer[512];
+    sprintf(line_buffer,"======= mproxy (v0.1) ========\n");
+    int len = strlen(line_buffer);
+    memcpy(output,line_buffer,len);
+    pos += len ;
+
+    sprintf(line_buffer,"%s\n",get_work_mode());
+    len = strlen(line_buffer);
+    memcpy(output + pos,line_buffer,len);
+    pos += len;
+
+    if(strlen(remote_host) > 0) 
+    {
+        sprintf(line_buffer,"start server on %d and next hop is %s:%d\n",local_port,remote_host,remote_port);
+
+    } else 
+    {
+        sprintf(line_buffer,"start server on %d\n",local_port);
+    }
+    
+    len = strlen(line_buffer);
+    memcpy(output+ pos,line_buffer,len);
+    pos += len ;
+    
+    output[pos] = '\0';
+
+}
+
+//返回mproxy的运行基本信息
+void hand_mproxy_info_req(int sock, char * header) {
+    char server_path[255] ;
+    char response[8192];
+    extract_server_path(header,server_path);
+    
+    LOG("server path:%s\n",server_path);
+    char info_buf[1024];
+    get_info(info_buf);
+    sprintf(response,"HTTP/1.0 200 OK\nServer: MProxy/0.1\n\
+                    Content-type: text/html; charset=utf-8\n\n\
+                     <html><body>\
+                     <pre>%s</pre>\
+                     </body></html>\n",info_buf);
+
+
+    write(sock,response,strlen(response));
+
+}
